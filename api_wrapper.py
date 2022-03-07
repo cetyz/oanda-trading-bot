@@ -45,7 +45,7 @@ class Oanda():
 #        return(json.dumps(header))
             
     
-    def get_candle(self, instrument='USD_JPY', count=1, granularity='S5'):
+    def get_candle(self, instrument='USD_JPY', count=1, granularity='S5', start=None, end=None):
         """
         Function to get the lastest 5 second candle.
         
@@ -54,9 +54,14 @@ class Oanda():
         Parameters:
         time_format (str): Default time format to 'RFC3339'. Can also be 'UNIX'.
         instrument (str): One of the currency pairs. Defaults to 'USD_JPY'.
-        count (int): Number of candles to return. Defaults to '1'. Maximum of '5000'.
+        count (int): Number of candles to return. Defaults to '1'. Maximum of '5000'. Should not
+            be provided if granularity + start + end is provided
         granularity (str): S5, S10, S15, S30, M1, M2, M4, M5, M10, M15, M30, H1,
             H2, H3, H4, H6, H8, H12, D, W, M. Defaults to 'S5'.
+        start (string): The start date for candles to request. Defaults to None.
+            ISO format timestamp 'YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ' 
+        end (string): The end date for candles to request. Defaults to None.
+            ISO format timestamp 'YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ' 
         
         Returns:
         JSON object
@@ -65,8 +70,36 @@ class Oanda():
         headers = {'Authorization': 'Bearer ' + self.token,
                   'Accept-Datetime-Format': self.time_format}
 
-        url = self.base_url + '/v3/instruments/' + instrument + '/candles' +\
-            '?count=' + str(count) + '&granularity=' + str(granularity)
+        if (self.time_format == 'UNIX') and (start or end):
+            raise TypeError('The wrapper cannot currently use UNIX datetime input/output while specifying start/end dates')
+
+        if start:
+            start = datetime.fromisoformat(start).isoformat()
+        if end:
+            end = datetime.fromisoformat(end).isoformat()
+
+        if (not start) and (not end):
+
+            url = f'{self.base_url}/v3/instruments/{instrument}/candles?count={str(count)}&granularity={str(granularity)}'
+
+        elif count and (start and end):
+
+            raise TypeError('count should be set as None is start and end dates are provided')
+
+        elif count and start:
+
+            url = f'{self.base_url}/v3/instruments/{instrument}/candles?count={str(count)}&granularity={str(granularity)}&from={start}'
+
+        elif count and end:
+
+            url = f'{self.base_url}/v3/instruments/{instrument}/candles?count={str(count)}&granularity={str(granularity)}&to={end}'
+
+        elif start and end:
+
+            url = f'{self.base_url}/v3/instruments/{instrument}/candles?count={str(count)}&granularity={str(granularity)}&from={start}&to={end}'
+
+        # url = f'{self.base_url}/v3/instruments/{instrument}/candles?count={str(count)}&granularity={str(granularity)}'
+
         success = False
         while not success:
             r = requests.get(url=url, headers=headers)
