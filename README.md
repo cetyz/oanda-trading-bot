@@ -20,6 +20,13 @@ Log in to Oanda account -> Manage Funds (View)
 User:
 The username (email address) you use to log in to Oanda
 
+
+
+----
+
+Feel free to run the data grabber script to get some data (if you need it)
+
+
 Maddie:
 Read up on existing code
 Source: https://developer.oanda.com/rest-live-v20/introduction/
