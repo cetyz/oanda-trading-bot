@@ -15,11 +15,11 @@ from api_wrapper import Oanda
 
 # just run and it will pull the data for you
 
-instrument = 'USD_JPY'
+instrument = 'ETH_USD'
 count = 5000
 granularity = 'S5'
 # start_date = '2010-01-05T00:00:00' # you can go into seconds as well
-start_date = '2001-01-01'
+start_date = '2019-01-01'
 end_date = '2021-12-31'
 
 csv_filename = f'{instrument}_data_{start_date}_to_{end_date}.csv'
