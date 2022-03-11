@@ -1,10 +1,17 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 import tensorflow as tf
+from tensorflow import keras
 
 from ai import create_q_model, get_optimizer, get_loss_function, get_num_actions
+
+
+epochs = 1000
+load_model = True
+model_to_load = 'models\model_2022-03-12_02-55-45'
 
 # load in data
 data = 'ETH_USD_data_2019-01-01_to_2021-12-31.csv'
@@ -42,14 +49,17 @@ max_steps_per_episode = 1440 # 2 hours worth of 5 sec candles
 
 living_penalty = -0.05 # penalty for choosing to do nothing (will probably need to tweak this quite a bit)
 
-
+if load_model:
+    model = keras.models.load_model(model_to_load)
+    model_target = keras.models.load_model(model_to_load)
+else:
 # The first model makes the predictions for Q-values which are used to
 # make a action.
-model = create_q_model()
+    model = create_q_model()
 # Build a target model for the prediction of future rewards.
 # The weights of a target model get updated every 10000 steps thus when the
 # loss between the Q-values is calculated the target Q-value is stable.
-model_target = create_q_model()
+    model_target = create_q_model()
 
 optimizer = get_optimizer()
 
@@ -118,8 +128,10 @@ arrows = Arrows()
 episode_rewards = []
 losses = []
 
-for i in range(20):
+for i in range(epochs):
     
+    episode_losses = []
+
     print(f'Starting episode {i}')
     # get the random 5000 candle starting point
     
@@ -307,12 +319,12 @@ for i in range(20):
                 break
         if (action >= 1) and (action <= 5):
             arrows.add_buy(df.iloc[random_start_point+state_window+step, j], price)
-            if len(arrows.buy_arrows) > 3:
-                arrows.buy_arrows.popitem()
+            # if len(arrows.buy_arrows) > 3:
+                # arrows.buy_arrows.popitem()
         elif (action >= 6) and (action <= 10):
             arrows.add_sell(df.iloc[random_start_point+state_window+step, j], price)
-            if len(arrows.sell_arrows) > 3:
-                arrows.sell_arrows.popitem()
+            # if len(arrows.sell_arrows) > 3:
+                # arrows.sell_arrows.popitem()
 
 
 
@@ -348,7 +360,7 @@ for i in range(20):
                 q_action = tf.reduce_sum(tf.multiply(q_values, masks), axis=1)
                 # Calculate loss between new Q-value and old Q-value
                 loss = loss_function(updated_q_values, q_action)
-                losses.append(loss)
+                episode_losses.append(loss)
 
             # Backpropagation
             grads = tape.gradient(loss, model.trainable_variables)
@@ -394,10 +406,16 @@ for i in range(20):
     model_target.set_weights(model.get_weights())
 
     print(f'Episode {i} reward: {episode_reward}')
+    print(f'Episode {i} loss: {np.mean(episode_losses)}')
     episode_count += 1
     episode_rewards.append(episode_reward)
+    losses.append(np.mean(episode_losses))
 
-print(episode_rewards)
+    if not i % 100:
+        now = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        model_target.save(f'models\\model_{now}')
+
+# print(episode_rewards)
 
 plt.clf()
 plt.plot(range(len(losses)), losses)
