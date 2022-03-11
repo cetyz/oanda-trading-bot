@@ -152,6 +152,8 @@ for i in range(20):
         
         price = get_price(df, idx=random_start_point+state_window+step)
 
+        reward = 0
+
         if not action:
             reward = living_penalty
 
@@ -167,85 +169,126 @@ for i in range(20):
                 position_qty = -quantity
                 position_avg_price = price
 
-        elif open_position:
+        elif open_position or (position_qty > 0):
             # buy
             if (action >= 1) and (action <= 5):
                 quantity = action
                 
-                if position_qty < 0:
+                # if position_qty < 0, 0, > 0
 
-                    if quantity <= -position_qty:
-                        # note the -ve sign in front of position_qty
-                        # basically, this could either close a short position
-                        # or reduce it
+                if position_qty < 0:
+                    # this means that we currently have a short position
+                    # 3 possibilities
+                    # 1. our order is larger than the position -> our short will close and then become a long
+                    # 2. our order is == to the position -> our short will close
+                    # 3. our ourder is small than the position -> our short will become smaller
+
+                    if quantity > -position_qty:
+                        # note the -ve sign because it's a short position
+                        diff = (price - position_avg_price) / position_avg_price
+                        reward = position_qty * diff * position_avg_price
+
+                        # our short is closed
+                        extra_qty = quantity - -position_qty
+
+                        # new long position is opened
+                        position_qty = extra_qty
+                        position_avg_price = price
+
+                    elif quantity == -position_qty:
+
+                        diff = (price - position_avg_price) / position_avg_price
+                        reward = position_qty * diff * position_avg_price
+
+                        # position is closed
+                        position_qty = 0
+                        position_avg_price = 0
+                        open_position = False
+
+                    elif quantity < -position_qty:
+
                         diff = (price - position_avg_price) / position_avg_price
                         reward = quantity * diff * position_avg_price * -1 # note the -1
 
-                        position_qty += quantity
+                        position_qty = position_qty + quantity
+                        # position_avg price remains the same
 
-                        if not position_qty:
-                            open_position = False
-                            position_avg_price = 0
-
-                    else:
-                        diff = (price - position_avg_price) / position_avg_price
-                        reward = position_qty * diff * position_avg_price # no need -1 here because position_qty is negative
-
-                        position_qty += quantity
-                        position_avg_price = price
+                elif not position_qty: # i.e. no open position (code should not actually reach here, but just in case)
                     
+                    position_qty = quantity
+                    position_avg_price = price
+                    reward = 0
+
                 elif position_qty > 0:
+                    # i.e. we are already in a long position. now just adding to it
+
                     old_position_cost = position_qty * position_avg_price
                     new_position_cost = quantity * price
-
                     position_qty = position_qty + quantity
                     position_avg_price = (old_position_cost + new_position_cost) / position_qty
 
                     reward = 0
 
 
+
             # sell
             elif (action >= 6) and (action <= 10):
                 quantity = action - 5
                 
-                if position_qty > 0:
+                # if position_qty < 0, 0, > 0
 
-                    if quantity <= position_qty:
-                        # i.e. i have a long position and i'm trying to sell
-                        # and since quantity <= position_qty
-                        # either position will close (if qty == position_qty)
-                        # or position will become smaller
-                        diff = (price - position_avg_price) / position_avg_price
-                        reward = quantity * diff * position_avg_price
-                        
-                        position_qty -= quantity
+                if position_qty < 0:
+                    # it means we already have a short position. just need to add to it
 
-                        # if it ends up closing the position
-                        if not position_qty:
-                            open_position = False
-                            position_avg_price = 0
+                    old_position_cost = position_qty * position_avg_price * -1
+                    new_position_cost = quantity * price * -1
+                    position_qty = position_qty + quantity # it's still negative
+                    position_avg_price = (old_position_cost + new_position_cost) / -position_qty
 
-                    else:
-                        # i.e. going to reverse my position
-                        # e.g. i could be long 1 unit, but now want to sell 3
-                        # calculate the reward for that "close" first
+                    reward = 0
+
+                elif not position_qty: # just to catch, in case
+
+                    position_qty = -quantity
+                    position_avg_price = price
+
+                    reward = 0
+
+                elif position_qty > 0:
+                    # this means that we currently have a long position
+                    # 3 possibilities
+                    # 1. our order is larger than the position -> our long will close and then become a short
+                    # 2. our order is == to the position -> our long will close
+                    # 3. our order is smaller than the position -> our long will become smaller
+
+                    if quantity > position_qty:
                         diff = (price - position_avg_price) / position_avg_price
                         reward = position_qty * diff * position_avg_price
-                        
-                        # then basically see what quantity we're left
-                        # in the example say -2
-                        # and each one of the -2 was sold at price
-                        # so just need to set avg price as price
-                        position_qty -= quantity
-                        position_avg_price = price
 
-                elif position_qty < 0:
-                    old_position_cost = -position_qty * position_avg_price
-                    new_position_cost = -quantity * price
+                        # our short is closed
+                        extra_qty = quantity - position_qty
 
-                    position_qty = -position_qty + -quantity
-                    position_avg_price = (old_position_cost + new_position_cost) / position_qty
-                    reward = 0
+                        # new short position is opened
+                        position_qty = -extra_qty
+                        position_avg_price = price        
+
+                    elif quantity == position_qty:
+
+                        diff = (price - position_avg_price) / position_avg_price
+                        reward = position_qty * diff * position_avg_price
+
+                        # position is closed
+                        position_qty = 0
+                        position_avg_price = 0
+                        open_position = False
+
+                    elif quantity < position_qty:
+                        diff = (price - position_avg_price) / position_avg_price
+                        reward = quantity * diff * position_avg_price 
+
+                        position_qty = position_qty - quantity                                                                
+
+
 
         state_next = get_state(df, random_start_point+step, random_start_point+state_window+step)
 
