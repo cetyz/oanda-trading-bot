@@ -116,6 +116,7 @@ class Arrows:
 arrows = Arrows()
 
 episode_rewards = []
+losses = []
 
 for i in range(20):
     
@@ -123,7 +124,7 @@ for i in range(20):
     # get the random 5000 candle starting point
     
     min_start_point = 0
-    max_start_point = len(df) - max_steps_per_episode
+    max_start_point = len(df) - state_window
 
     random_start_point = np.random.randint(min_start_point, max_start_point)
 
@@ -241,8 +242,8 @@ for i in range(20):
                     # it means we already have a short position. just need to add to it
 
                     old_position_cost = position_qty * position_avg_price * -1
-                    new_position_cost = quantity * price * -1
-                    position_qty = position_qty + quantity # it's still negative
+                    new_position_cost = quantity * price
+                    position_qty = -position_qty + quantity
                     position_avg_price = (old_position_cost + new_position_cost) / -position_qty
 
                     reward = 0
@@ -288,8 +289,6 @@ for i in range(20):
 
                         position_qty = position_qty - quantity                                                                
 
-
-
         state_next = get_state(df, random_start_point+step, random_start_point+state_window+step)
 
         episode_reward += reward
@@ -315,31 +314,7 @@ for i in range(20):
             if len(arrows.sell_arrows) > 3:
                 arrows.sell_arrows.popitem()
 
-        #####
-        # gonna chuck some visualisation in here
-        #####
-        
-        # viz_window = 540
-        # temp_df = df.iloc[random_start_point+state_window-viz_window+step:random_start_point+state_window+step]
 
-        # plt.clf()
-        # plt.plot(temp_df['datetime'], temp_df['price'])
-
-        # # arrow should be say 5% of the chart height
-        # y_min = temp_df['price'].min()
-        # y_max = temp_df['price'].max()
-        # arrow_height = (y_max - y_min) * 0.05
-
-        # for arrow_x, arrow_y in arrows.buy_arrows.items():
-        #     plt.arrow(arrow_x, arrow_y-arrow_height*2, 0, arrow_height, color='green')
-        # for arrow_x, arrow_y in arrows.sell_arrows.items():
-        #     plt.arrow(arrow_x, arrow_y+arrow_height*2, 0, -arrow_height, color='red')
-
-        # plt.pause(0.05)
-
-        #######
-        #######
-        #######
 
 
         if step % update_after_actions == 0 and len(action_history) > batch_size:
@@ -373,6 +348,7 @@ for i in range(20):
                 q_action = tf.reduce_sum(tf.multiply(q_values, masks), axis=1)
                 # Calculate loss between new Q-value and old Q-value
                 loss = loss_function(updated_q_values, q_action)
+                losses.append(loss)
 
             # Backpropagation
             grads = tape.gradient(loss, model.trainable_variables)
@@ -382,7 +358,32 @@ for i in range(20):
         #     # update the the target network with new weights
         #     model_target.set_weights(model.get_weights())
         
+        #####
+        # gonna chuck some visualisation in here
+        #####
         
+        # viz_window = 540
+        # temp_df = df.iloc[random_start_point+state_window-viz_window+step:random_start_point+state_window+step]
+
+        # plt.clf()
+        # plt.plot(temp_df['datetime'], temp_df['price'])
+
+        # # arrow should be say 5% of the chart height
+        # y_min = temp_df['price'].min()
+        # y_max = temp_df['price'].max()
+        # arrow_height = (y_max - y_min) * 0.05
+
+        # for arrow_x, arrow_y in arrows.buy_arrows.items():
+        #     plt.arrow(arrow_x, arrow_y-arrow_height*2, 0, arrow_height, color='green')
+        # for arrow_x, arrow_y in arrows.sell_arrows.items():
+        #     plt.arrow(arrow_x, arrow_y+arrow_height*2, 0, -arrow_height, color='red')
+
+        # plt.pause(0.05)
+
+        #######
+        #######
+        #######
+        #         
         # Limit the state and reward history
         if len(rewards_history) > max_memory_length:
             del rewards_history[:1]
@@ -398,6 +399,9 @@ for i in range(20):
 
 print(episode_rewards)
 
+plt.clf()
+plt.plot(range(len(losses)), losses)
+plt.show()
 
 # visualize
 

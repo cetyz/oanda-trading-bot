@@ -16,7 +16,7 @@ import tensorflow as tf
 from tensorflow import keras
 from keras import layers
 
-LEARNING_RATE = 0.00025
+LEARNING_RATE = 0.001
 
 num_actions = 11 # 5 levels of buy + 5 levels of sell + do nothing
 
