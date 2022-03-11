@@ -18,20 +18,11 @@ from keras import layers
 
 LEARNING_RATE = 0.00025
 
-seed = 0 # in case we need to replicate or smth
-gamma = 0.99 # discount factor for past rewards (higher gamma means more emphasis on future rewards)
-epsilon = 1.0 # probability of performing random action (start at 1.0)
-epsilon_min = 0.1
-epsilon_max = 1.0
-epsilon_interval = epsilon_max - epsilon_min # rate at which to reduce epsilon
-batch_size = 32 # size of batch taken from replay buffer
-max_steps_per_episode = 17_280 # assuming 5 sec candles, this would be 24hrs (let's assume one episode is one day)
-
 num_actions = 11 # 5 levels of buy + 5 levels of sell + do nothing
 
 def create_q_model():
 
-    inputs = layers.Input(shape=(5, 5000,)) # temp
+    inputs = layers.Input(shape=(25000)) # temp
 
     layer1 = layers.Dense(1024, activation='relu')(inputs)
     layer2 = layers.Dense(1024, activation='relu')(layer1)
@@ -40,13 +31,20 @@ def create_q_model():
 
     return keras.Model(inputs=inputs, outputs=action)
 
-optimizer = keras.optimizers.Adam(learning_rate=LEARNING_RATE, clipnorm=1.0)
+def get_optimizer():
 
-# The first model makes the predictions for Q-values which are used to
-# make a action.
-model = create_q_model()
-# Build a target model for the prediction of future rewards.
-# The weights of a target model get updated every 10000 steps thus when the
-# loss between the Q-values is calculated the target Q-value is stable.
-model_target = create_q_model() 
+    optimizer = keras.optimizers.Adam(learning_rate=LEARNING_RATE, clipnorm=1.0)
+
+    return(optimizer)
+
+def get_loss_function():
+
+    # loss_function = keras.losses.SparseCategoricalCrossentropy()
+    loss_function = keras.losses.Huber()
+
+    return(loss_function)
+
+def get_num_actions():
+
+    return(num_actions)
 
